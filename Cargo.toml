@@ -7,3 +7,6 @@ author = "JekTheCoder"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+clap = { version = "4.0.29", features = ["derive"] }
+miette = { version = "5.5.0", features = ["fancy"] }
+thiserror = { version = "1.0.38" }
