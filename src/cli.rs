@@ -26,7 +26,7 @@ pub struct GenerateCommand {
 }
 
 mod params_parser {
-    use std::error::Error;
+	use std::error::Error;
 
 	pub fn parse_key_val<T, U>(s: &str) -> Result<(T, U), Box<dyn Error + Send + Sync + 'static>>
 	where

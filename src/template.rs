@@ -11,7 +11,10 @@ pub struct ParamNotFound<'a> {
 	pub end: usize,
 }
 
-pub fn parse<'a>(template: &'a str, params: &HashMap<String, String>) -> Result<String, ParamNotFound<'a>> {
+pub fn parse<'a>(
+	template: &'a str,
+	params: &HashMap<String, String>,
+) -> Result<String, ParamNotFound<'a>> {
 	let mut parsed = String::new();
 	let mut i = 0usize;
 
@@ -19,7 +22,11 @@ pub fn parse<'a>(template: &'a str, params: &HashMap<String, String>) -> Result<
 		let slice = &template[i..=start];
 
 		parsed.push_str(slice);
-		let value = params.get(name).ok_or(ParamNotFound { template, end, start })?;
+		let value = params.get(name).ok_or(ParamNotFound {
+			template,
+			end,
+			start,
+		})?;
 		parsed.push_str(value);
 
 		i = end;
@@ -84,7 +91,7 @@ impl<'a> Iterator for ParamsBrowser<'a> {
 						let param = TemplateParam {
 							name,
 							start: *at - 3,
-							end: i+1,
+							end: i + 1,
 						};
 						self.name_at = None;
 

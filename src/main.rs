@@ -1,17 +1,17 @@
 mod cli;
-mod template;
 mod commands;
 mod diagnostics;
+mod template;
 
-use clap::Parser;
-use crate::cli::{ Cli, Commands };
+use crate::cli::{Cli, Commands};
 use crate::commands::generate::generate;
+use clap::Parser;
 
 fn main() -> miette::Result<()> {
 	let cli = Cli::parse();
 
 	match cli.commands {
-		Commands::Generate(c) => generate(c)
+		Commands::Generate(c) => generate(c),
 	}?;
 
 	Ok(())

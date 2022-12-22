@@ -5,7 +5,10 @@ use crate::template::ParamNotFound;
 
 #[derive(Error, Debug, Diagnostic)]
 #[error("Param Not found in template")]
-#[diagnostic(code(ParamNotFound), help("Specify the param with the -p option. Eg. -p param=<value>"))]
+#[diagnostic(
+	code(ParamNotFound),
+	help("Specify the param with the -p option. Eg. -p param=<value>")
+)]
 pub struct ParamNotFoundDiagnostic {
 	#[source_code]
 	src: NamedSource,

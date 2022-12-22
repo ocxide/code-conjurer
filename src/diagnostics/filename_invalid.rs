@@ -3,12 +3,10 @@ use thiserror::Error;
 
 #[derive(Error, Debug, Diagnostic)]
 #[error("Filename Invalid")]
-#[diagnostic(
-	code(io::FilenameInvalid),
-)]
+#[diagnostic(code(io::FilenameInvalid))]
 pub struct FilenameInvalid {
 	#[source_code]
-  filename: NamedSource,
+	filename: NamedSource,
 }
 
 impl FilenameInvalid {

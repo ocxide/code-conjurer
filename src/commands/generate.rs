@@ -18,16 +18,26 @@ pub fn generate(command: GenerateCommand) -> miette::Result<()> {
 		template,
 	} = command;
 
+	/* Get file name and extension from output file */
 	let (name, _) = filename_from_path(&output)
 		.ok_or_else(|| FilenameInvalid::new(NamedSource::new(&output, "")))?;
 
+	/* Transform clap params into HashMap */
 	let params_map = into_params(params, name);
+
+	/* Read template content */
 	let template_content =
 		fs::read_to_string(&template).map_err(|_| FileNotFoundDiagnostic::from_path(&template))?;
 
-	let parsed = parse(&template_content, &params_map)
-		.map_err(|e| ParamNotFoundDiagnostic::from_error(e, &template))?;
-	println!("{parsed}");
+	/* Parse over lines to avoid entire file content duplication */
+	let parsed = template_content
+		.lines()
+		.map(|line| {
+			parse(line, &params_map).map_err(|e| ParamNotFoundDiagnostic::from_error(e, &template))
+		})
+		.collect::<Result<String, ParamNotFoundDiagnostic>>()?;
+
+	print!("{}", parsed);
 
 	Ok(())
 }
