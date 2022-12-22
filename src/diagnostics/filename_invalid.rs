@@ -1,4 +1,4 @@
-use miette::{Diagnostic, NamedSource};
+use miette::{Diagnostic, SourceSpan};
 use thiserror::Error;
 
 #[derive(Error, Debug, Diagnostic)]
@@ -6,11 +6,19 @@ use thiserror::Error;
 #[diagnostic(code(io::FilenameInvalid))]
 pub struct FilenameInvalid {
 	#[source_code]
-	filename: NamedSource,
+	src: String,
+	#[label("Invalid")]
+	invalid: SourceSpan,
 }
 
 impl FilenameInvalid {
-	pub fn new(filename: NamedSource) -> Self {
-		Self { filename }
+	pub fn new(filename: impl Into<String>) -> Self {
+		let filename = filename.into();
+		let len = filename.len();
+
+		Self {
+			src: filename,
+			invalid: (0, len).into(),
+		}
 	}
 }

@@ -1,6 +1,10 @@
-use std::{collections::HashMap, fs};
+use std::{
+	collections::HashMap,
+	fs::{self, File},
+	io::Write,
+};
 
-use miette::NamedSource;
+use miette::IntoDiagnostic;
 
 use crate::{
 	cli::GenerateCommand,
@@ -19,8 +23,7 @@ pub fn generate(command: GenerateCommand) -> miette::Result<()> {
 	} = command;
 
 	/* Get file name and extension from output file */
-	let (name, _) = filename_from_path(&output)
-		.ok_or_else(|| FilenameInvalid::new(NamedSource::new(&output, "")))?;
+	let (name, _) = filename_from_path(&output).ok_or_else(|| FilenameInvalid::new(&output))?;
 
 	/* Transform clap params into HashMap */
 	let params_map = into_params(params, name);
@@ -33,11 +36,17 @@ pub fn generate(command: GenerateCommand) -> miette::Result<()> {
 	let parsed = template_content
 		.lines()
 		.map(|line| {
-			parse(line, &params_map).map_err(|e| ParamNotFoundDiagnostic::from_error(e, &template))
+			let mut line =
+				parse(line, &params_map).map_err(|e| ParamNotFoundDiagnostic::from_error(e, &template))?;
+			line.push('\n');
+			Ok(line)
 		})
 		.collect::<Result<String, ParamNotFoundDiagnostic>>()?;
 
-	print!("{}", parsed);
+	let mut output_file =
+		File::create(&output).map_err(|_| FileNotFoundDiagnostic::from_path(&output))?;
+
+	output_file.write_all(parsed.as_bytes()).into_diagnostic()?;
 
 	Ok(())
 }
