@@ -5,9 +5,13 @@ use std::{
 };
 
 #[derive(Debug)]
-pub struct ParamNotFound;
+pub struct ParamNotFound<'a> {
+	pub template: &'a str,
+	pub start: usize,
+	pub end: usize,
+}
 
-pub fn parse(template: &str, params: &HashMap<String, String>) -> Result<String, ParamNotFound> {
+pub fn parse<'a>(template: &'a str, params: &HashMap<String, String>) -> Result<String, ParamNotFound<'a>> {
 	let mut parsed = String::new();
 	let mut i = 0usize;
 
@@ -15,7 +19,7 @@ pub fn parse(template: &str, params: &HashMap<String, String>) -> Result<String,
 		let slice = &template[i..=start];
 
 		parsed.push_str(slice);
-		let value = params.get(name).ok_or(ParamNotFound)?;
+		let value = params.get(name).ok_or(ParamNotFound { template, end, start })?;
 		parsed.push_str(value);
 
 		i = end;

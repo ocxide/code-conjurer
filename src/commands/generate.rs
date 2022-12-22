@@ -4,7 +4,10 @@ use miette::NamedSource;
 
 use crate::{
 	cli::GenerateCommand,
-	diagnostics::{file_not_found::FileNotFoundDiagnostic, filename_invalid::FilenameInvalid},
+	diagnostics::{
+		file_not_found::FileNotFoundDiagnostic, filename_invalid::FilenameInvalid,
+		param_not_found::ParamNotFoundDiagnostic,
+	},
 	template::parse,
 };
 
@@ -22,7 +25,8 @@ pub fn generate(command: GenerateCommand) -> miette::Result<()> {
 	let template_content =
 		fs::read_to_string(&template).map_err(|_| FileNotFoundDiagnostic::from_path(&template))?;
 
-	let parsed = parse(&template_content, &params_map).unwrap();
+	let parsed = parse(&template_content, &params_map)
+		.map_err(|e| ParamNotFoundDiagnostic::from_error(e, &template))?;
 	println!("{parsed}");
 
 	Ok(())
@@ -40,7 +44,7 @@ fn into_params(params: Vec<(String, String)>, name: &str) -> HashMap<String, Str
 
 fn filename_from_path(path: &str) -> Option<(&str, &str)> {
 	let pos = path.rfind('/');
-	let filename =	match pos {
+	let filename = match pos {
 		Some(pos) => &path[pos + 1..],
 		None => path,
 	};
