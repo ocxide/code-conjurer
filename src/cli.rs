@@ -18,8 +18,8 @@ pub enum Commands {
 pub struct GenerateCommand {
 	/// Template name or path to generate
 	pub template: String,
-	/// Output file name
-	pub output: String,
+	// / Output file name
+	// pub output: String,
 	/// Aditional parameters for the template output
 	#[arg(short = 'p', value_parser = parse_key_val::<String, String>)]
 	pub params: Vec<(String, String)>,

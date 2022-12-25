@@ -15,12 +15,8 @@ use crate::{
 	template::parse,
 };
 
-pub fn generate(command: GenerateCommand) -> miette::Result<()> {
-	let GenerateCommand {
-		output,
-		params,
-		template,
-	} = command;
+pub fn generate(command: GenerateCommand, output: String) -> miette::Result<()> {
+	let GenerateCommand { params, template } = command;
 
 	/* Get file name and extension from output file */
 	let (name, _) = filename_from_path(&output).ok_or_else(|| FilenameInvalid::new(&output))?;

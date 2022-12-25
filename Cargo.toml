@@ -10,3 +10,5 @@ author = "JekTheCoder"
 clap = { version = "4.0.29", features = ["derive"] }
 miette = { version = "5.5.0", features = ["fancy"] }
 thiserror = { version = "1.0.38" }
+tui = "0.19"
+crossterm = "0.25"
