@@ -1,8 +1,10 @@
 mod cli;
 mod commands;
 mod diagnostics;
+mod dir_browser;
 mod template;
 mod terminal;
+mod traits;
 
 use crate::cli::{Cli, Commands};
 use crate::commands::generate::generate;
