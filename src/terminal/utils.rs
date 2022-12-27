@@ -17,11 +17,11 @@ where
 	let mut terminal = Terminal::new(backend)?;
 
 	// create app and run it
-	fun(&mut terminal)?;
+	let res = fun(&mut terminal);
 
 	// restore terminal
 	disable_raw_mode()?;
 	execute!(terminal.backend_mut(), LeaveAlternateScreen)?;
 
-	Ok(())
+	res
 }
