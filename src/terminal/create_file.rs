@@ -44,6 +44,13 @@ pub fn create_file() -> io::Result<String> {
 				match key.code {
 					KeyCode::Esc => return Err(io::ErrorKind::Interrupted.into()),
 					KeyCode::Left => state.browser.back().ignore(),
+					KeyCode::Right => {
+						if let Some(selected) = state.selected.selected() {
+							if state.browser.enter(selected).is_ok() {
+								state.selected.select(Some(0));
+							}
+						}
+					}
 					KeyCode::Down => {
 						if let Some(selected) = state.selected.selected() {
 							state.selected.select(Some(selected + 1));
