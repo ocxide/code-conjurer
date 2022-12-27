@@ -13,8 +13,8 @@ pub enum Entry {
 
 #[derive(Debug)]
 pub struct Symlink {
-	name: String,
-	link: PathBuf,
+	pub name: String,
+	pub link: PathBuf,
 }
 
 impl TryFrom<DirEntry> for Entry {
