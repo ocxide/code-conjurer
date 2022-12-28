@@ -1,7 +1,7 @@
 use std::{
 	collections::HashMap,
 	fs::{self, File},
-	io::Write,
+	io::Write, path::PathBuf,
 };
 
 use miette::IntoDiagnostic;
@@ -15,8 +15,9 @@ use crate::{
 	template::parse,
 };
 
-pub fn generate(command: GenerateCommand, output: String) -> miette::Result<()> {
+pub fn generate(command: GenerateCommand, output: impl AsRef<PathBuf>) -> miette::Result<()> {
 	let GenerateCommand { params, template } = command;
+	let output = output.as_ref();
 
 	/* Get file name and extension from output file */
 	let (name, _) = filename_from_path(&output).ok_or_else(|| FilenameInvalid::new(&output))?;

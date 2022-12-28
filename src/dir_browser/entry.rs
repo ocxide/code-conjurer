@@ -4,14 +4,14 @@ use std::{
 	path::PathBuf,
 };
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Entry {
 	File(String),
 	Directory(String),
 	Symlink(Symlink),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Symlink {
 	pub name: String,
 	pub link: PathBuf,

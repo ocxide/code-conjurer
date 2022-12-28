@@ -42,6 +42,10 @@ impl DirBrowser {
 	pub fn read_dir(&self) -> impl Iterator<Item = &Entry> {
 		self.entries.iter()
 	}
+
+	pub fn get_path(&self) -> &PathBuf {
+		&self.path
+	}
 }
 
 impl TryDefault for DirBrowser {
