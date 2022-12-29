@@ -7,8 +7,10 @@ pub fn get_ext(filename: &str) -> Option<&str> {
 	Some(&filename[pos + 1..])
 }
 
-static TEMPLATE_DIR: Lazy<PathBuf> =
-	Lazy::new(|| PathBuf::try_from("./files/templates/").expect("Template Directory path invalid"));
+static TEMPLATE_DIR: Lazy<PathBuf> = Lazy::new(|| {
+	PathBuf::try_from(r#"D:\Code\rust\code-conjurer\files\templates\"#)
+		.expect("Template Directory path invalid")
+});
 
 pub fn get_template_path(filename: &str) -> PathBuf {
 	let mut path = TEMPLATE_DIR.clone();
