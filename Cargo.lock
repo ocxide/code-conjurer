@@ -137,6 +137,7 @@ dependencies = [
  "clap",
  "crossterm",
  "miette",
+ "once_cell",
  "thiserror",
  "tui",
 ]

@@ -12,3 +12,4 @@ miette = { version = "5.5.0", features = ["fancy"] }
 thiserror = { version = "1.0.38" }
 tui = "0.19"
 crossterm = "0.25"
+once_cell = "1.16.0"

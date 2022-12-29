@@ -1,7 +1,8 @@
 use std::{
 	collections::HashMap,
 	fs::{self, File},
-	io::Write, path::PathBuf,
+	io::Write,
+	path::PathBuf,
 };
 
 use miette::IntoDiagnostic;
@@ -12,22 +13,30 @@ use crate::{
 		file_not_found::FileNotFoundDiagnostic, filename_invalid::FilenameInvalid,
 		param_not_found::ParamNotFoundDiagnostic,
 	},
+	path::{get_ext, get_template_path},
 	template::parse,
 };
 
-pub fn generate(command: GenerateCommand, output: impl AsRef<PathBuf>) -> miette::Result<()> {
+pub fn generate(command: GenerateCommand, mut output: PathBuf) -> miette::Result<()> {
 	let GenerateCommand { params, template } = command;
-	let output = output.as_ref();
 
-	/* Get file name and extension from output file */
-	let (name, _) = filename_from_path(&output).ok_or_else(|| FilenameInvalid::new(&output))?;
+	let output_name = output
+		.file_name()
+		.ok_or_else(|| FilenameInvalid::new(output.to_str().unwrap()))?;
 
+	let output_name = output_name
+		.to_os_string()
+		.into_string()
+		.map_err(|_| FilenameInvalid::new(""))?;
+
+	let template_path = get_template_path(&template);
+	let template_ext = get_ext(&template).unwrap_or("");
 	/* Transform clap params into HashMap */
-	let params_map = into_params(params, name);
+	let params_map = into_params(params, &output_name);
 
 	/* Read template content */
 	let template_content =
-		fs::read_to_string(&template).map_err(|_| FileNotFoundDiagnostic::from_path(&template))?;
+		fs::read_to_string(&template_path).map_err(|_| FileNotFoundDiagnostic::from_path(&template))?;
 
 	/* Parse over lines to avoid entire file content duplication */
 	let parsed = template_content
@@ -40,8 +49,8 @@ pub fn generate(command: GenerateCommand, output: impl AsRef<PathBuf>) -> miette
 		})
 		.collect::<Result<String, ParamNotFoundDiagnostic>>()?;
 
-	let mut output_file =
-		File::create(&output).map_err(|_| FileNotFoundDiagnostic::from_path(&output))?;
+	output.set_extension(template_ext);
+	let mut output_file = File::create(output).map_err(|_| FileNotFoundDiagnostic::from_path(""))?;
 
 	output_file.write_all(parsed.as_bytes()).into_diagnostic()?;
 
@@ -56,18 +65,4 @@ fn into_params(params: Vec<(String, String)>, name: &str) -> HashMap<String, Str
 	}
 
 	map
-}
-
-fn filename_from_path(path: &str) -> Option<(&str, &str)> {
-	let pos = path.rfind('/');
-	let filename = match pos {
-		Some(pos) => &path[pos + 1..],
-		None => path,
-	};
-
-	let dot_pos = filename.find('.')?;
-	let ext = &filename[dot_pos..];
-	let name = &filename[0..dot_pos];
-
-	Some((name, ext))
 }

@@ -5,6 +5,7 @@ mod dir_browser;
 mod template;
 mod terminal;
 mod traits;
+mod path;
 
 use crate::cli::{Cli, Commands};
 use crate::commands::generate::generate;
