@@ -1,4 +1,4 @@
-use std::{collections::HashMap, fs, io::Write, path::PathBuf};
+use std::{collections::HashMap, fs, io::Write, path::{PathBuf, Path}};
 
 use miette::IntoDiagnostic;
 
@@ -50,7 +50,7 @@ pub fn recursive_generate(command: GenerateCommand, output: PathBuf) -> miette::
 pub fn generate_entry(
 	entry: &Entry,
 	browser: &mut DirBrowser,
-	output_path: &PathBuf,
+	output_path: &Path,
 	params: &HashMap<String, String>,
 	i: usize,
 ) -> miette::Result<()> {
@@ -60,7 +60,7 @@ pub fn generate_entry(
 			let output_path = output_path.join(filename);
 			generate_file(filename, &template_path, output_path, params)?;
 		}
-		Entry::Directory(_) => generate_dir(i, browser, output_path, params)?,
+		Entry::Directory(dirname) => generate_dir(i, dirname, browser, output_path, params)?,
 		_ => todo!(),
 	}
 
@@ -104,20 +104,30 @@ fn generate_file(
 
 fn generate_dir(
 	i: usize,
+	dirname: &str,
 	browser: &mut DirBrowser,
-	output_path: &PathBuf,
+	output_path: &Path,
 	params: &HashMap<String, String>,
 ) -> miette::Result<()> {
+	/* Generate dir in output dir */
+	let output_path = output_path.join(dirname);
+
+	/* Enter into the template dir */
 	browser.enter(i).into_diagnostic()?;
+
+	/* Read template entries */
 	let entries = browser
 		.read_dir()
 		.take_while(|entry| !matches!(entry, Entry::Directory(_)))
 		.cloned()
 		.collect::<Vec<_>>();
+
+	
 	for (i, entry) in entries.iter().enumerate() {
-		generate_entry(entry, browser, output_path, params, i)?;
+		generate_entry(entry, browser, &output_path, params, i)?;
 	}
 
+	/* Get back of template dir */
 	browser.back().into_diagnostic()?;
 
 	Ok(())
