@@ -40,8 +40,10 @@ pub fn recursive_generate(command: GenerateCommand, output: PathBuf) -> miette::
 		DirBrowser::new(template_path.clone()).into_miette((&template_path, "Template"))?;
 	let entries = browser.read_dir().cloned().collect::<Vec<_>>();
 
+	/* Generate files into output dir not into the ouput itself */
+	let output_dir = output.parent().unwrap_or(output.as_path());
 	for (i, entry) in entries.iter().enumerate() {
-		generate_entry(entry, &mut browser, &output, &params, i)?;
+		generate_entry(entry, &mut browser,output_dir, &params, i)?;
 	}
 
 	Ok(())
