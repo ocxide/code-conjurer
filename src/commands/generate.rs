@@ -1,4 +1,9 @@
-use std::{collections::HashMap, fs, io::Write, path::{PathBuf, Path}};
+use std::{
+	collections::HashMap,
+	fs,
+	io::Write,
+	path::{Path, PathBuf},
+};
 
 use miette::IntoDiagnostic;
 
@@ -6,7 +11,7 @@ use crate::{
 	cli::GenerateCommand,
 	diagnostics::{file_not_found::FileNotFoundDiagnostic, param_not_found::ParamNotFoundDiagnostic},
 	dir_browser::{browser::DirBrowser, entry::Entry, file_creator::create_file},
-	path::{get_ext, get_template_path},
+	path::{get_ext, get_template_path, parse_path},
 	template::parse,
 	traits::{ignore::Ignore, into_miette::IntoMiette, try_from::MyTryInto},
 };
@@ -43,7 +48,7 @@ pub fn recursive_generate(command: GenerateCommand, output: PathBuf) -> miette::
 	/* Generate files into output dir not into the ouput itself */
 	let output_dir = output.parent().unwrap_or(output.as_path());
 	for (i, entry) in entries.iter().enumerate() {
-		generate_entry(entry, &mut browser,output_dir, &params, i)?;
+		generate_entry(entry, &mut browser, output_dir, &params, i)?;
 	}
 
 	Ok(())
@@ -90,12 +95,8 @@ fn generate_file(
 		})
 		.collect::<Result<String, ParamNotFoundDiagnostic>>()?;
 
-	{
-		let output_filename = parse(template_filename, params)
-			.map_err(|e| ParamNotFoundDiagnostic::from_error(e, template_filename))?;
-
-		output_path.set_file_name(output_filename);
-	}
+	output_path = parse_path(&output_path, params)
+		.map_err(|e| ParamNotFoundDiagnostic::from_error(e, template_filename))?;
 
 	output_path.set_extension(template_ext);
 	let mut output_file = create_file(&output_path).into_miette((&output_path, "Output"))?;
@@ -124,7 +125,6 @@ fn generate_dir(
 		.cloned()
 		.collect::<Vec<_>>();
 
-	
 	for (i, entry) in entries.iter().enumerate() {
 		generate_entry(entry, browser, &output_path, params, i)?;
 	}
