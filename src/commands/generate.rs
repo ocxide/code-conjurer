@@ -87,6 +87,14 @@ fn generate_file(
 			Ok(line)
 		})
 		.collect::<Result<String, ParamNotFoundDiagnostic>>()?;
+
+	{
+		let output_filename = parse(template_filename, params)
+			.map_err(|e| ParamNotFoundDiagnostic::from_error(e, template_filename))?;
+
+		output_path.set_file_name(output_filename);
+	}
+
 	output_path.set_extension(template_ext);
 	let mut output_file = create_file(&output_path).into_miette((&output_path, "Output"))?;
 	output_file.write_all(parsed.as_bytes()).ignore();

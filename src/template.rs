@@ -19,7 +19,7 @@ pub fn parse<'a>(
 	let mut i = 0usize;
 
 	for TemplateParam { name, start, end } in ParamsBrowser::new(template) {
-		let slice = &template[i..=start];
+		let slice = &template[i..start];
 
 		parsed.push_str(slice);
 		let value = params.get(name).ok_or(ParamNotFound {
@@ -90,7 +90,7 @@ impl<'a> Iterator for ParamsBrowser<'a> {
 
 						let param = TemplateParam {
 							name,
-							start: *at - 3,
+							start: *at - LEFT_LEN,
 							end: i + 1,
 						};
 						self.name_at = None;
