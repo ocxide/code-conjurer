@@ -10,7 +10,7 @@ pub fn get_ext(filename: &str) -> Option<&str> {
 }
 
 static TEMPLATE_DIR: Lazy<PathBuf> = Lazy::new(|| {
-	PathBuf::try_from(r#"D:\Code\rust\code-conjurer\files\templates\"#)
+	PathBuf::try_from(r#"C:/bin/code-conjurer/"#)
 		.expect("Template Directory path invalid")
 });
 
