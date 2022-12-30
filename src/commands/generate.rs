@@ -12,7 +12,7 @@ use crate::{
 	diagnostics::{file_not_found::FileNotFoundDiagnostic, param_not_found::ParamNotFoundDiagnostic},
 	dir_browser::{browser::DirBrowser, entry::Entry, file_creator::create_file},
 	path::{get_ext, get_template_path, parse_path},
-	template::parse,
+	template::parse::parse,
 	traits::{ignore::Ignore, into_miette::IntoMiette, try_from::MyTryInto},
 };
 

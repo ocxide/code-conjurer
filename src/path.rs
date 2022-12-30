@@ -2,7 +2,7 @@ use std::{path::{PathBuf, Path}, collections::HashMap};
 
 use once_cell::sync::Lazy;
 
-use crate::template::{ParamNotFound, parse};
+use crate::template::parse::{ParamNotFound, parse};
 
 pub fn get_ext(filename: &str) -> Option<&str> {
 	let pos = filename.rfind('.')?;

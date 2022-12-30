@@ -1,8 +1,14 @@
-use std::collections::HashMap;
 use std::{
 	iter::{Enumerate, Skip},
 	str::Chars,
 };
+
+use std::collections::HashMap;
+
+use super::pipes::{capitalize_once, capitalize_all};
+
+type Pipe = Box<dyn (Fn(&str) -> String) + 'static>;
+type PipesMap = HashMap<String, Pipe>;
 
 #[derive(Debug)]
 pub struct ParamNotFound<'a> {
@@ -11,23 +17,50 @@ pub struct ParamNotFound<'a> {
 	pub end: usize,
 }
 
+const SEPARATOR: char = '|';
+
 pub fn parse<'a>(
 	template: &'a str,
 	params: &HashMap<String, String>,
+) -> Result<String, ParamNotFound<'a>> {
+	let mut pipes: PipesMap = HashMap::new();
+	pipes.insert("capitalize_once".into(), Box::new(capitalize_once));
+	pipes.insert("capitalize_all".into(), Box::new(|slice| capitalize_all(slice, '-')));
+
+	_parse(template, params, pipes)
+}
+
+fn _parse<'a>(
+	template: &'a str,
+	params: &HashMap<String, String>,
+	pipes: PipesMap,
 ) -> Result<String, ParamNotFound<'a>> {
 	let mut parsed = String::new();
 	let mut i = 0usize;
 
 	for TemplateParam { name, start, end } in ParamsBrowser::new(template) {
-		let slice = &template[i..start];
+		/* Previous slice */
+		let back = &template[i..start];
 
-		parsed.push_str(slice);
-		let value = params.get(name).ok_or(ParamNotFound {
+		parsed.push_str(back);
+
+		let (var_name, pipes_iter) = {
+			let mut var_slices = name.split(SEPARATOR);
+			/* Slipt always return a first param */
+			let var_name = var_slices.next().unwrap();
+			let pipes = var_slices;
+
+			(var_name, pipes)
+		};
+
+		let value = params.get(var_name).ok_or(ParamNotFound {
 			template,
 			end,
 			start,
 		})?;
-		parsed.push_str(value);
+
+		let piped_value = apply_pipes(value, pipes_iter, &pipes);
+		parsed.push_str(&piped_value);
 
 		i = end;
 	}
@@ -103,4 +136,25 @@ impl<'a> Iterator for ParamsBrowser<'a> {
 
 		None
 	}
+}
+
+fn apply_pipes<'a>(
+	value: &'a str,
+	split: impl Iterator<Item = &'a str>,
+	pipes: &PipesMap,
+) -> String {
+	let mut pipes_fns = split.filter_map(|pipe_name| pipes.get(pipe_name));
+	let first_pipe = match pipes_fns.next() {
+		Some(first_pipe) => first_pipe,
+		None => return value.to_owned(),
+	};
+
+	let mut result = first_pipe(value);
+
+	for pipe in pipes_fns {
+		result = pipe(&result);
+	}
+
+	// Return the `result` variable.
+	result
 }

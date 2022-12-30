@@ -1,7 +1,7 @@
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
-use crate::template::ParamNotFound;
+use crate::template::parse::ParamNotFound;
 
 #[derive(Error, Debug, Diagnostic)]
 #[error("Param Not found in template")]
