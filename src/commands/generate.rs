@@ -9,25 +9,16 @@ use miette::IntoDiagnostic;
 
 use crate::{
 	cli::GenerateCommand,
-	diagnostics::{
-		file_not_found::FileNotFoundDiagnostic, filename_invalid::FilenameInvalid,
-		param_not_found::ParamNotFoundDiagnostic,
-	},
+	diagnostics::{file_not_found::FileNotFoundDiagnostic, param_not_found::ParamNotFoundDiagnostic},
 	path::{get_ext, get_template_path},
 	template::parse,
+	traits::into_miette::IntoMiette,
 };
 
 pub fn generate(command: GenerateCommand, mut output: PathBuf) -> miette::Result<()> {
 	let GenerateCommand { params, template } = command;
 
-	let output_name = output
-		.file_name()
-		.ok_or_else(|| FilenameInvalid::new(output.to_str().unwrap()))?;
-
-	let output_name = output_name
-		.to_os_string()
-		.into_string()
-		.map_err(|_| FilenameInvalid::new(""))?;
+	let output_name = output.file_name().into_miette("Output")?;
 
 	let template_path = get_template_path(&template);
 	let template_ext = get_ext(&template).unwrap_or("");
@@ -36,7 +27,7 @@ pub fn generate(command: GenerateCommand, mut output: PathBuf) -> miette::Result
 
 	/* Read template content */
 	let template_content =
-		fs::read_to_string(&template_path).map_err(|_| FileNotFoundDiagnostic::from_path(&template))?;
+		fs::read_to_string(&template_path).map_err(|_| FileNotFoundDiagnostic::new(&template))?;
 
 	/* Parse over lines to avoid entire file content duplication */
 	let parsed = template_content
@@ -50,7 +41,7 @@ pub fn generate(command: GenerateCommand, mut output: PathBuf) -> miette::Result
 		.collect::<Result<String, ParamNotFoundDiagnostic>>()?;
 
 	output.set_extension(template_ext);
-	let mut output_file = File::create(output).map_err(|_| FileNotFoundDiagnostic::from_path(""))?;
+	let mut output_file = File::create(&output).into_miette((&output, "Output"))?;
 
 	output_file.write_all(parsed.as_bytes()).into_diagnostic()?;
 

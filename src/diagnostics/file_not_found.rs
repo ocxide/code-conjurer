@@ -12,7 +12,7 @@ pub struct FileNotFoundDiagnostic {
 }
 
 impl FileNotFoundDiagnostic {
-	pub fn from_path(path: impl Into<String>) -> Self {
+	pub fn new(path: impl Into<String>) -> Self {
 		let path = path.into();
 		let len = path.len();
 
