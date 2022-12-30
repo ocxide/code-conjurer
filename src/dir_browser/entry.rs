@@ -1,8 +1,9 @@
 use std::{
-	fs::{self, DirEntry},
-	io,
-	path::PathBuf,
+	fs, io,
+	path::{Path, PathBuf},
 };
+
+use crate::traits::try_from::MyTryFrom;
 
 #[derive(Debug, Clone)]
 pub enum Entry {
@@ -17,13 +18,15 @@ pub struct Symlink {
 	pub link: PathBuf,
 }
 
-impl TryFrom<DirEntry> for Entry {
+impl<P: AsRef<Path>> MyTryFrom<P> for Entry {
 	type Error = io::Error;
 
-	fn try_from(value: DirEntry) -> Result<Self, Self::Error> {
+	fn my_try_from(value: P) -> Result<Self, Self::Error> {
+		let value = value.as_ref();
 		let metadata = value.metadata()?;
 		let name = value
 			.file_name()
+			.ok_or(io::ErrorKind::InvalidData)?
 			.to_str()
 			.ok_or(io::ErrorKind::InvalidData)?
 			.to_owned();
@@ -33,8 +36,7 @@ impl TryFrom<DirEntry> for Entry {
 		} else if metadata.is_dir() {
 			Ok(Entry::Directory(name))
 		} else {
-			let path = value.path();
-			let link = fs::read_link(path)?;
+			let link = fs::read_link(value)?;
 			Ok(Entry::Symlink(Symlink { name, link }))
 		}
 	}

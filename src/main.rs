@@ -2,14 +2,14 @@ mod cli;
 mod commands;
 mod diagnostics;
 mod dir_browser;
+mod path;
 mod template;
 mod terminal;
 mod traits;
-mod path;
 
 use crate::cli::{Cli, Commands};
-use crate::commands::generate::generate;
 use clap::Parser;
+use commands::generate::recursive_generate;
 use miette::IntoDiagnostic;
 use terminal::create_file::create_file;
 
@@ -19,7 +19,7 @@ fn main() -> miette::Result<()> {
 	match cli.commands {
 		Commands::Generate(c) => {
 			let output = create_file().into_diagnostic()?;
-			generate(c, output)?;
+			recursive_generate(c, output)?;
 			Ok(()) as miette::Result<()>
 		}
 	}?;

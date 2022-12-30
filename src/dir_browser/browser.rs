@@ -1,6 +1,6 @@
 use std::{io, path::PathBuf};
 
-use crate::traits::try_default::TryDefault;
+use crate::traits::{try_default::TryDefault, try_from::MyTryInto};
 
 use super::entry::Entry;
 
@@ -14,7 +14,7 @@ impl DirBrowser {
 		let entries: Vec<Entry> = path
 			.read_dir()?
 			.flatten()
-			.map(|entry| entry.try_into())
+			.map(|entry| entry.path().my_try_into())
 			.collect::<Result<_, _>>()?;
 		Ok(DirBrowser { entries, path })
 	}
