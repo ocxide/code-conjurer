@@ -18,6 +18,9 @@ pub enum Commands {
 pub struct GenerateCommand {
 	/// Template name or path to generate
 	pub template: String,
+
+    /// Path for generating
+    pub path: Option<String>,
 	// / Output file name
 	// pub output: String,
 	/// Aditional parameters for the template output

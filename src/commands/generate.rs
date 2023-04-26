@@ -8,7 +8,6 @@ use std::{
 use miette::IntoDiagnostic;
 
 use crate::{
-	cli::GenerateCommand,
 	diagnostics::{file_not_found::FileNotFoundDiagnostic, param_not_found::ParamNotFoundDiagnostic},
 	dir_browser::{browser::DirBrowser, entry::Entry, file_creator::create_file},
 	path::{get_ext, get_template_path, parse_path},
@@ -26,15 +25,16 @@ fn into_params(params: Vec<(String, String)>, name: &str) -> HashMap<String, Str
 	map
 }
 
-pub fn recursive_generate(command: GenerateCommand, output: PathBuf) -> miette::Result<()> {
-	let GenerateCommand {
-		params,
-		template: template_filename,
-	} = command;
+pub fn recursive_generate(
+	params: Vec<(String, String)>,
+	template_filename: String,
+	output: PathBuf,
+) -> miette::Result<()> {
 	let template_path = get_template_path(&template_filename);
 	let output_name = output.file_name().into_miette("Output")?;
 	let params = into_params(params, &output_name);
 
+    dbg!(&params);
 	let entry: Entry = template_path.clone().my_try_into().into_diagnostic()?;
 	if let Entry::File(_) = entry {
 		generate_file(&template_filename, &template_path, output, &params)?;

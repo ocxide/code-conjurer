@@ -1,8 +1,11 @@
-use std::{path::{PathBuf, Path}, collections::HashMap};
+use std::{
+	collections::HashMap,
+	path::{Path, PathBuf},
+};
 
 use once_cell::sync::Lazy;
 
-use crate::template::parse::{ParamNotFound, parse};
+use crate::template::parse::{parse, ParamNotFound};
 
 pub fn get_ext(filename: &str) -> Option<&str> {
 	let pos = filename.rfind('.')?;
@@ -10,8 +13,11 @@ pub fn get_ext(filename: &str) -> Option<&str> {
 }
 
 static TEMPLATE_DIR: Lazy<PathBuf> = Lazy::new(|| {
-	PathBuf::try_from(r#"C:/bin/code-conjurer/"#)
-		.expect("Template Directory path invalid")
+	PathBuf::try_from(format!(
+		r#"{}/bin/code-conjurer/templates/"#,
+		std::env!("HOME")
+	))
+	.expect("Template Directory path invalid")
 });
 
 pub fn get_template_path(filename: &str) -> PathBuf {
@@ -20,7 +26,10 @@ pub fn get_template_path(filename: &str) -> PathBuf {
 	path
 }
 
-pub fn parse_path<'a>(path: &'a Path, params: &HashMap<String, String>) -> Result<PathBuf, ParamNotFound<'a>> {
+pub fn parse_path<'a>(
+	path: &'a Path,
+	params: &HashMap<String, String>,
+) -> Result<PathBuf, ParamNotFound<'a>> {
 	let path = match path.to_str() {
 		Some(s) => s,
 		None => return Ok(path.to_owned()),
