@@ -1,4 +1,9 @@
-use std::{fs::{File, self}, io, path::Path};
+use std::{
+	fs::{self, File},
+	io,
+	path::Path,
+};
+
 pub fn create_file(path: impl AsRef<Path>) -> io::Result<File> {
 	let path = path.as_ref();
 	let parent = path.parent();
@@ -8,5 +13,5 @@ pub fn create_file(path: impl AsRef<Path>) -> io::Result<File> {
 	}
 
 	let file = File::create(path)?;
-  Ok(file)
+	Ok(file)
 }

@@ -30,9 +30,8 @@ fn main() -> miette::Result<()> {
 				None => create_file().into_diagnostic()?,
 				Some(path) => path.into(),
 			};
-			dbg!(&output);
 
-			recursive_generate(params, template, output)
+			recursive_generate(params, template, output, &config)
 		}
 	}
 }

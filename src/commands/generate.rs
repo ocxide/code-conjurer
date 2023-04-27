@@ -10,9 +10,9 @@ use miette::IntoDiagnostic;
 use crate::{
 	diagnostics::{file_not_found::FileNotFoundDiagnostic, param_not_found::ParamNotFoundDiagnostic},
 	dir_browser::{browser::DirBrowser, entry::Entry, file_creator::create_file},
-	path::{get_ext, get_template_path, parse_path},
+	path::{get_ext, parse_path},
 	template::parse::parse,
-	traits::{ignore::Ignore, into_miette::IntoMiette, try_from::MyTryInto},
+	traits::{ignore::Ignore, into_miette::IntoMiette, try_from::MyTryInto}, config::Config,
 };
 
 fn into_params(params: Vec<(String, String)>, name: &str) -> HashMap<String, String> {
@@ -27,17 +27,17 @@ fn into_params(params: Vec<(String, String)>, name: &str) -> HashMap<String, Str
 
 pub fn recursive_generate(
 	params: Vec<(String, String)>,
-	template_filename: String,
+	template_name: String,
 	output: PathBuf,
+    config: &Config,
 ) -> miette::Result<()> {
-	let template_path = get_template_path(&template_filename);
+	let template_path = config.templates_path.join(&template_name);
 	let output_name = output.file_name().into_miette("Output")?;
 	let params = into_params(params, &output_name);
 
-    dbg!(&params);
 	let entry: Entry = template_path.clone().my_try_into().into_diagnostic()?;
 	if let Entry::File(_) = entry {
-		generate_file(&template_filename, &template_path, output, &params)?;
+		generate_file(&template_name, &template_path, output, &params)?;
 		return Ok(());
 	}
 

@@ -191,7 +191,6 @@ dependencies = [
  "clap",
  "crossterm",
  "miette",
- "once_cell",
  "serde",
  "shellexpand",
  "thiserror",

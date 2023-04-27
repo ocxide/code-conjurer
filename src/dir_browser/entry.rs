@@ -33,7 +33,6 @@ impl<P: AsRef<Path>> MyTryFrom<P> for Entry {
 
 	fn my_try_from(value: P) -> Result<Self, Self::Error> {
 		let value = value.as_ref();
-		dbg!(&value);
 		let metadata = value.metadata()?;
 		let name = value
 			.file_name()
