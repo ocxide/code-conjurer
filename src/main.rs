@@ -6,15 +6,18 @@ mod path;
 mod template;
 mod terminal;
 mod traits;
+mod config;
 
 use crate::cli::{Cli, Commands};
 use clap::Parser;
 use cli::GenerateCommand;
 use commands::generate::recursive_generate;
+use config::Config;
 use miette::IntoDiagnostic;
 use terminal::create_file::create_file;
 
 fn main() -> miette::Result<()> {
+    let config = Config::try_new()?;
 	let cli = Cli::parse();
 
 	match cli.commands {
@@ -29,10 +32,7 @@ fn main() -> miette::Result<()> {
 			};
 			dbg!(&output);
 
-			recursive_generate(params, template, output)?;
-			Ok(()) as miette::Result<()>
+			recursive_generate(params, template, output)
 		}
-	}?;
-
-	Ok(())
+	}
 }
