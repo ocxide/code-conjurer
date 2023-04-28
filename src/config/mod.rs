@@ -1,44 +1,25 @@
 mod error;
+mod toml_config;
 
-use std::fs::read_to_string;
-use std::path::PathBuf;
-use std::{borrow::Cow, env::current_exe};
-
-use serde::Deserialize;
+use std::env::current_dir;
+use std::env::current_exe;
 
 use self::error::ConfigError;
-
-const CONFIG_PATH: &str = "config.toml";
-
-#[derive(Deserialize)]
-struct TomlConfig {
-	pub templates_path: String,
-}
+use self::toml_config::TomlConfig;
 
 pub struct Config {
-	pub templates_path: PathBuf,
+	pub toml_config: TomlConfig,
 }
 
 impl Config {
 	pub fn try_new() -> Result<Self, ConfigError> {
 		let config_toml_path = current_exe()
-			.map_err(|_| ConfigError::CcoDirUnaccessable)?
-			.parent()
-			.ok_or_else(|| ConfigError::CcoDirUnaccessable)?
-			.join(CONFIG_PATH);
+			.ok()
+			.and_then(|path| path.parent().map(|path| path.to_owned()))
+			.or_else(|| current_dir().ok())
+			.ok_or_else(|| ConfigError::CcoDirUnaccessable)?;
 
-		let toml_content =
-			read_to_string(config_toml_path).map_err(|_| ConfigError::ConfigTomlNotFound)?;
-
-		let TomlConfig { templates_path } =
-			toml::from_str::<TomlConfig>(&toml_content).map_err(|_| ConfigError::TomlUnparseable)?;
-
-		let expanded = shellexpand::full(&templates_path)?;
-		let templates_path = match expanded {
-			Cow::Owned(owned) => PathBuf::from(owned),
-			Cow::Borrowed(borrowed) => PathBuf::from(borrowed),
-		};
-
-		Ok(Config { templates_path })
+		let toml_config = TomlConfig::try_new(&config_toml_path)?;
+		Ok(Config { toml_config })
 	}
 }

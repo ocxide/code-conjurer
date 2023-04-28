@@ -9,6 +9,9 @@ pub struct Cli {
 
 #[derive(Debug, Subcommand)]
 pub enum Commands {
+	/// Prints path of the exe
+	#[clap(alias = "p")]
+	Path,
 	/// Generates a file code from a given template
 	#[clap(alias = "g")]
 	Generate(GenerateCommand),
@@ -19,8 +22,8 @@ pub struct GenerateCommand {
 	/// Template name or path to generate
 	pub template: String,
 
-    /// Path for generating
-    pub path: Option<String>,
+	/// Path for generating
+	pub path: Option<String>,
 	// / Output file name
 	// pub output: String,
 	/// Aditional parameters for the template output
