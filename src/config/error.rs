@@ -1,35 +1,31 @@
-use std::error::Error;
+use std::env::VarError;
+
+use shellexpand::LookupError;
+
+fn config_path() -> String {
+	let dir = std::env::current_exe();
+	let dir = match &dir {
+		Ok(dir) => dir
+			.parent()
+			.map(|path| path.to_str())
+			.flatten()
+			.unwrap_or_else(|| "{unknown}"),
+		_ => "{unknown}",
+	};
+
+	format!("{dir}/config.toml")
+}
 
 #[derive(thiserror::Error, Debug, miette::Diagnostic)]
 pub enum ConfigError {
-	#[error("Config file 'config.toml' was not found")]
+	#[error("Dir of cco executable is unaccessable")]
+	CcoDirUnaccessable,
+	#[error("Config file '{}' was not found", config_path())]
 	ConfigTomlNotFound,
 
 	#[error("Config file 'config.toml' unparseable")]
 	TomlUnparseable,
 
 	#[error(transparent)]
-	TemplatePathError(#[from] TemplatePathError),
+	TemplatePathError(#[from] LookupError<VarError>),
 }
-
-#[derive(Debug)]
-pub struct TemplatePathError;
-impl std::fmt::Display for TemplatePathError {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		match std::env::current_dir()
-			.ok()
-			.map(|dir| dir.into_os_string().into_string().ok())
-			.flatten()
-		{
-			Some(dir) => {
-				write!(
-					f,
-					"Invalid templates_path in config file '{dir}/config.toml'"
-				)
-			}
-			_ => write!(f, "Invalid templates_path in config file 'config.toml'"),
-		}
-	}
-}
-
-impl Error for TemplatePathError {}
