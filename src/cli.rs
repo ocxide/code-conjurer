@@ -15,6 +15,8 @@ pub enum Commands {
 	/// Generates a file code from a given template
 	#[clap(alias = "g")]
 	Generate(GenerateCommand),
+    /// List templates of the current config
+    List,
 }
 
 #[derive(Debug, Args)]
