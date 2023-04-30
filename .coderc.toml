@@ -1,0 +1,3 @@
+templates_path="~/bin/code-conjurer/templates/"
+[variables]
+a = "b"
