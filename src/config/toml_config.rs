@@ -1,6 +1,6 @@
 mod error;
 
-use std::{borrow::Cow, collections::HashMap, fs, io, path::PathBuf, mem};
+use std::{borrow::Cow, collections::HashMap, fs, io, mem, path::PathBuf};
 
 use serde::Deserialize;
 
@@ -48,12 +48,14 @@ where
 impl TomlConfig {
 	pub fn try_new(choices: &[PathBuf]) -> Result<Self, TomlConfigError> {
 		let mut base_config = PartialTomlConfig::default();
-		for path in choices.iter().map(|choice| choice.join(CONFIG_FILENAME)) {
-			let content = fs::read_to_string(path.clone()).map_err(|e| match e.kind() {
-				io::ErrorKind::NotFound => TomlConfigError::NotFound(path),
-				_ => TomlConfigError::Unreadable(path),
-			})?;
+		let mut found_any = false;
 
+		let files = choices
+			.iter()
+			.map(|choice| choice.join(CONFIG_FILENAME))
+			.collect::<Vec<_>>();
+
+		for content in files.iter().flat_map(fs::read_to_string) {
 			let added_config = toml::from_str::<PartialTomlConfig>(&content)?;
 			if added_config.templates_path.is_some() {
 				base_config.templates_path = added_config.templates_path;
@@ -62,18 +64,24 @@ impl TomlConfig {
 			if added_config.variables.is_some() {
 				base_config.variables = added_config.variables;
 			}
+
+			found_any = true;
 		}
 
-        Self::try_build(base_config)
+		if !found_any {
+			return Err(NotFoundIn(files.into()).into());
+		}
+
+		Self::try_build(base_config)
 	}
 
 	fn try_build(base: PartialTomlConfig) -> Result<Self, TomlConfigError> {
-        let mut config = Self::try_from(base)?;
-        let custom_variables = mem::replace(&mut config.variables, default_variables());
-        config.variables.append(custom_variables);
+		let mut config = Self::try_from(base)?;
+		let custom_variables = mem::replace(&mut config.variables, default_variables());
+		config.variables.append(custom_variables);
 
-        Ok(config)
-    }
+		Ok(config)
+	}
 }
 
 impl TryFrom<PartialTomlConfig> for TomlConfig {
@@ -102,13 +110,13 @@ mod tests {
 
 	#[test]
 	fn should_have_default_variables() {
-        let base = PartialTomlConfig {
-            templates_path: Some(PathBuf::new()),
-            ..Default::default()
-        };
+		let base = PartialTomlConfig {
+			templates_path: Some(PathBuf::new()),
+			..Default::default()
+		};
 		let config = TomlConfig::try_build(base).unwrap();
 
-        assert_eq!(config.variables["namespace"], "app");
+		assert_eq!(config.variables["namespace"], "app");
 	}
 
 	#[test]
