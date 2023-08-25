@@ -51,3 +51,11 @@ impl<P: AsRef<Path>> MyTryFrom<P> for Entry {
 		}
 	}
 }
+
+impl TryFrom<PathBuf> for Entry {
+	type Error = io::Error;
+
+	fn try_from(value: PathBuf) -> Result<Self, Self::Error> {
+		Entry::my_try_from(value)
+	}
+}

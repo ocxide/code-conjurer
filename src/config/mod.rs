@@ -3,6 +3,7 @@ mod toml_config;
 
 use std::env::current_dir;
 use std::env::current_exe;
+use std::path::PathBuf;
 
 use self::error::ConfigError;
 use self::toml_config::TomlConfig;
@@ -14,16 +15,26 @@ pub struct Config {
 
 impl Config {
 	pub fn try_new() -> Result<Self, ConfigError> {
-		let toml_config = {
-			match current_exe().ok() {
-				Some(current_exe) => match current_dir().ok() {
-					Some(current_dir) => TomlConfig::try_new(&[current_exe, current_dir]),
-					None => TomlConfig::try_new(&[current_exe]),
-				},
-				None => return Err(ConfigError::CcoDirUnaccessable),
-			}
-		}?;
+		let routes = [current_exe_dir(), current_dir()]
+			.into_iter()
+			.flatten()
+			.collect::<Vec<_>>();
+
+		if routes.len() == 0 {
+			return Err(ConfigError::DirectoriesUnaccessable);
+		}
+
+		let toml_config = TomlConfig::try_new(&routes)?;
 
 		Ok(Config { toml_config })
 	}
+}
+
+fn current_exe_dir() -> std::io::Result<PathBuf> {
+	let exe_path = current_exe()?;
+	let exe_dir = exe_path
+		.parent()
+		.ok_or_else(|| std::io::Error::from(std::io::ErrorKind::NotFound))?;
+
+	Ok(exe_dir.to_owned())
 }
