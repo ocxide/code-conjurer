@@ -1,6 +1,6 @@
 mod error;
 
-use std::{borrow::Cow, collections::HashMap, fs, io, mem, path::PathBuf};
+use std::{borrow::Cow, collections::HashMap, fs, mem, path::PathBuf};
 
 use serde::Deserialize;
 
@@ -11,8 +11,10 @@ pub const CONFIG_FILENAME: &str = ".codecrc.toml";
 
 #[derive(Deserialize, Debug, Default)]
 pub struct PartialTomlConfig {
+    #[serde(default)]
 	#[serde(deserialize_with = "partial_deserialize_path")]
 	pub templates_path: Option<PathBuf>,
+    #[serde(default)]
 	pub variables: Option<HashMap<String, String>>,
 }
 
@@ -71,6 +73,8 @@ impl TomlConfig {
 		if !found_any {
 			return Err(NotFoundIn(files.into()).into());
 		}
+
+        println!("{:?}", &base_config);
 
 		Self::try_build(base_config)
 	}
