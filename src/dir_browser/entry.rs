@@ -12,6 +12,12 @@ pub enum Entry {
 	Symlink(Symlink),
 }
 
+impl Entry {
+    pub fn symlink(filename: String, link: PathBuf) -> Self {
+        Entry::Symlink(Symlink { name: filename, link })
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct Symlink {
 	pub name: String,
