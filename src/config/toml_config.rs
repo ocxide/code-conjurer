@@ -11,10 +11,10 @@ pub const CONFIG_FILENAME: &str = ".codecrc.toml";
 
 #[derive(Deserialize, Debug, Default)]
 pub struct PartialTomlConfig {
-    #[serde(default)]
+	#[serde(default)]
 	#[serde(deserialize_with = "partial_deserialize_path")]
 	pub templates_path: Option<PathBuf>,
-    #[serde(default)]
+	#[serde(default)]
 	pub variables: Option<HashMap<String, String>>,
 }
 
@@ -57,6 +57,8 @@ impl TomlConfig {
 			.map(|choice| choice.join(CONFIG_FILENAME))
 			.collect::<Vec<_>>();
 
+        println!("{:?}", &files);
+
 		for content in files.iter().flat_map(fs::read_to_string) {
 			let added_config = toml::from_str::<PartialTomlConfig>(&content)?;
 			if added_config.templates_path.is_some() {
@@ -73,8 +75,6 @@ impl TomlConfig {
 		if !found_any {
 			return Err(NotFoundIn(files.into()).into());
 		}
-
-        println!("{:?}", &base_config);
 
 		Self::try_build(base_config)
 	}
@@ -139,5 +139,16 @@ mod tests {
 		let config = TomlConfig::try_build(base).unwrap();
 
 		assert_eq!(config.variables["namespace"], "foo");
+	}
+
+	#[test]
+	fn reads_correctly() {
+		let paths = [
+			PathBuf::from("./tests/mock-config/foo/"),
+			PathBuf::from("./tests/mock-config/bar/"),
+		];
+
+		let config = TomlConfig::try_new(&paths).unwrap();
+        assert_eq!(config.variables["namespace"], "foo");
 	}
 }

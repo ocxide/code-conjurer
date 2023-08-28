@@ -37,7 +37,7 @@ fn main() -> miette::Result<()> {
 				Some(path) => path.into(),
 			};
 
-			recursive_generate(params, template, output, &config)
+			recursive_generate(params, template, output, config)
 		}
 	}
 }

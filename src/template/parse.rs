@@ -5,7 +5,7 @@ use std::{
 
 use std::collections::HashMap;
 
-use super::pipes::{capitalize_once, capitalize_all};
+use super::pipes::{capitalize_all, capitalize_once};
 
 type Pipe = Box<dyn (Fn(&str) -> String) + 'static>;
 type PipesMap = HashMap<String, Pipe>;
@@ -25,7 +25,10 @@ pub fn parse<'a>(
 ) -> Result<String, ParamNotFound<'a>> {
 	let mut pipes: PipesMap = HashMap::new();
 	pipes.insert("capitalize_once".into(), Box::new(capitalize_once));
-	pipes.insert("capitalize_all".into(), Box::new(|slice| capitalize_all(slice, '-')));
+	pipes.insert(
+		"capitalize_all".into(),
+		Box::new(|slice| capitalize_all(slice, '-')),
+	);
 
 	_parse(template, params, pipes)
 }
@@ -53,10 +56,14 @@ fn _parse<'a>(
 			(var_name, pipes)
 		};
 
-		let value = params.get(var_name).ok_or(ParamNotFound {
-			template,
-			end,
-			start,
+		let value = params.get(var_name).ok_or_else(|| {
+			println!("{:?}", &params);
+
+			ParamNotFound {
+				template,
+				end,
+				start,
+			}
 		})?;
 
 		let piped_value = apply_pipes(value, pipes_iter, &pipes);

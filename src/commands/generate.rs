@@ -16,25 +16,25 @@ use crate::{
 	traits::{ignore::Ignore, into_miette::IntoMiette, try_from::MyTryInto},
 };
 
-fn into_params(params: Vec<(String, String)>, name: &str) -> HashMap<String, String> {
-	let mut map = HashMap::new();
+fn into_params(map: &mut HashMap<String, String>, params: Vec<(String, String)>, name: &str) {
 	map.insert("name".into(), name.into());
 	for (key, value) in params {
 		map.insert(key, value);
 	}
-
-	map
 }
 
 pub fn recursive_generate(
 	params: Vec<(String, String)>,
 	template_name: String,
 	output: PathBuf,
-	config: &Config,
+	mut config: Config,
 ) -> miette::Result<()> {
 	let template_path = config.toml_config.templates_path.join(&template_name);
 	let output_name = output.file_name().into_miette("Output")?;
-	let params = into_params(params, &output_name);
+
+	into_params(&mut config.toml_config.variables, params, &output_name);
+
+    let params = config.toml_config.variables;
 
 	let entry: Entry = template_path.clone().my_try_into().into_diagnostic()?;
 	if let Entry::File(_) = entry {
