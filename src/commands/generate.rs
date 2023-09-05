@@ -1,137 +1,228 @@
+mod error;
+
 use std::{
 	collections::HashMap,
-	fs,
-	io::Write,
-	path::{Path, PathBuf},
+	fs::FileType,
+	io::{BufRead, BufReader, BufWriter, Write},
+	path::PathBuf,
 };
-
-use miette::IntoDiagnostic;
 
 use crate::{
 	config::Config,
-	diagnostics::{file_not_found::FileNotFoundDiagnostic, param_not_found::ParamNotFoundDiagnostic},
-	dir_browser::{browser::DirBrowser, entry::Entry, file_creator::create_file},
-	path::{get_ext, parse_path},
-	template::parse::parse,
-	traits::{ignore::Ignore, into_miette::IntoMiette, try_from::MyTryInto},
+	io::path::NamedPathBuf,
+	template::parse::{DefaultTemplateParse, TemplateParse},
 };
 
-fn into_params(map: &mut HashMap<String, String>, params: Vec<(String, String)>, name: &str) {
-	map.insert("name".into(), name.into());
-	for (key, value) in params {
-		map.insert(key, value);
-	}
-}
+use error::Error;
 
-pub fn recursive_generate(
-	params: Vec<(String, String)>,
+pub type FilesGenerated = Box<[PathBuf]>;
+
+/// Arguments:
+/// * `cli_variables`: arguments passed to cli like "namespace=foo, bar=baz",
+/// * `template_name`: name of template stored in user files, like "ng-c", "ng-s", "rc-c", etc
+/// * `output`: path where to generate the files,
+pub fn generate(
+	cli_variables: Vec<(String, String)>,
 	template_name: String,
 	output: PathBuf,
 	mut config: Config,
-) -> miette::Result<()> {
+) -> Result<FilesGenerated, Error> {
+	let output_name = output
+		.file_name()
+		.and_then(|os_str| os_str.to_str())
+		.ok_or(Error::OutputNameInvalid)?;
+
+	attatch_variables(
+		&mut config.toml_config.variables,
+		cli_variables,
+		output_name.to_owned(),
+	);
+
 	let template_path = config.toml_config.templates_path.join(&template_name);
-	let output_name = output.file_name().into_miette("Output")?;
-
-	into_params(&mut config.toml_config.variables, params, &output_name);
-
-    let params = config.toml_config.variables;
-
-	let entry: Entry = template_path.clone().my_try_into().into_diagnostic()?;
-	if let Entry::File(_) = entry {
-		generate_file(&template_name, &template_path, output, &params)?;
-		return Ok(());
-	}
-
-	let mut browser =
-		DirBrowser::new(template_path.clone()).into_miette((&template_path, "Template"))?;
-	let entries = browser.read_dir().cloned().collect::<Vec<_>>();
-
-	/* Generate files into output dir not into the ouput itself */
-	let output_dir = output.parent().unwrap_or(output.as_path());
-	for (i, entry) in entries.iter().enumerate() {
-		generate_entry(entry, &mut browser, output_dir, &params, i)?;
-	}
-
-	Ok(())
-}
-
-pub fn generate_entry(
-	entry: &Entry,
-	browser: &mut DirBrowser,
-	output_path: &Path,
-	params: &HashMap<String, String>,
-	i: usize,
-) -> miette::Result<()> {
-	match entry {
-		Entry::File(filename) => {
-			let template_path = browser.get_path().join(filename);
-			let output_path = output_path.join(filename);
-			generate_file(filename, &template_path, output_path, params)?;
+	// Use a match to avoid borrow checker issues
+	let template_file_metadata = match template_path.metadata() {
+		Ok(metadata) => metadata,
+		Err(_) => {
+			let error = Error::TemplateNotAccessible(template_name, config.toml_config.templates_path);
+			return Err(error);
 		}
-		Entry::Directory(dirname) => generate_dir(i, dirname, browser, output_path, params)?,
-		_ => todo!(),
+	};
+
+	let mut files_generated = vec![];
+	let parser = DefaultTemplateParse::with_vars(config.toml_config.variables);
+
+	let output_name = output_name.into();
+
+	recursive_generate(
+		NamedPathBuf::new(template_path, template_name.into()),
+		template_file_metadata.file_type(),
+		NamedPathBuf::new(output, output_name),
+		&mut files_generated,
+		&parser,
+	)?;
+
+	Ok(files_generated.into_boxed_slice())
+}
+
+fn recursive_generate<T: TemplateParse>(
+	template_path: NamedPathBuf,
+	template_filetype: FileType,
+	output: NamedPathBuf,
+	files_generated: &mut Vec<PathBuf>,
+
+	template_parser: &T,
+) -> Result<(), Error> {
+	if template_filetype.is_file() {
+		generate_file(
+			template_path.pathbuf,
+			output.pathbuf,
+			files_generated,
+			template_parser,
+		)
+	} else if template_filetype.is_dir() {
+		generate_dir(
+			template_path.pathbuf,
+			output.pathbuf,
+			files_generated,
+			template_parser,
+		)
+	} else {
+		unimplemented!("Symlinks are not supported yet! :(");
+	}
+}
+
+fn generate_dir<T: TemplateParse>(
+	template_dir: PathBuf,
+	output: PathBuf,
+	files_generated: &mut Vec<PathBuf>,
+	template_parser: &T,
+) -> Result<(), Error> {
+	let read_dir = match template_dir.read_dir() {
+		Ok(read_dir) => read_dir,
+		Err(_) => {
+			let error = Error::CouldNotRead(template_dir);
+			return Err(error);
+		}
+	};
+
+	for entry in read_dir {
+		let entry = match entry {
+			Ok(entry) => entry,
+			Err(_) => {
+				let error = Error::CouldNotRead(template_dir);
+				return Err(error);
+			}
+		};
+
+		let filename = entry.file_name();
+		// Do the filetype call in this scope because it is almost free in most platforms
+		let filetype = match entry.file_type() {
+			Ok(filetype) => filetype,
+			Err(_) => {
+				let error = Error::CouldNotRead(template_dir);
+				return Err(error);
+			}
+		};
+
+		recursive_generate(
+			NamedPathBuf::new(entry.path(), filename.clone()),
+			filetype,
+			NamedPathBuf::new(output.join(&filename), filename),
+			files_generated,
+			template_parser,
+		)?;
 	}
 
 	Ok(())
 }
 
-fn generate_file(
-	template_filename: &str,
-	template_path: &PathBuf,
-	mut output_path: PathBuf,
-	params: &HashMap<String, String>,
-) -> miette::Result<()> {
-	let template_ext = get_ext(template_filename).unwrap_or("");
+fn generate_file<T: TemplateParse>(
+	template_filename: PathBuf,
+	output_filename: PathBuf,
+	generated_files: &mut Vec<PathBuf>,
+	template_parser: &T,
+) -> Result<(), Error> {
+	let template_file = match std::fs::File::open(&template_filename) {
+		Ok(file) => file,
+		Err(_) => {
+			let error = Error::NotOpenable(template_filename);
+			return Err(error);
+		}
+	};
+	let template_file = BufReader::new(template_file);
 
-	let template_content = fs::read_to_string(template_path)
-		.map_err(|_| FileNotFoundDiagnostic::new(template_filename))?;
+	let output_file = match std::fs::File::create(&output_filename) {
+		Ok(file) => file,
+		Err(_) => {
+			let error = Error::CouldNotWrite(output_filename);
+			return Err(error);
+		}
+	};
+	let mut output_file = BufWriter::new(output_file);
 
-	let parsed = template_content
-		.lines()
-		.map(|line| {
-			let mut line = parse(line, params)
-				.map_err(|e| ParamNotFoundDiagnostic::from_error(e, template_filename))?;
-			line.push('\n');
-			Ok(line)
-		})
-		.collect::<Result<String, ParamNotFoundDiagnostic>>()?;
+	for result in template_file.lines() {
+		let line = match result {
+			Ok(line) => line,
+			Err(_) => {
+				let error = Error::CouldNotRead(template_filename);
+				return Err(error);
+			}
+		};
 
-	output_path = parse_path(&output_path, params)
-		.map_err(|e| ParamNotFoundDiagnostic::from_error(e, template_filename))?;
+		if let Err(e) = template_parser.parse(&line, &mut output_file) {
+			let error = Error::from_parse_error(
+				e,
+				line,
+				template_filename
+					.into_os_string()
+					.into_string()
+					.unwrap_or_else(|_| "<Invalid Filename>".into()),
+			);
 
-	output_path.set_extension(template_ext);
-	let mut output_file = create_file(&output_path).into_miette((&output_path, "Output"))?;
-	output_file.write_all(parsed.as_bytes()).ignore();
+			return Err(error);
+		};
+	}
+
+	if let Err(e) = output_file.flush() {
+		match e.kind() {
+			std::io::ErrorKind::UnexpectedEof => {}
+			_ => return Err(Error::CouldNotWrite(output_filename)),
+		}
+	}
+
+	// Push the generated file is this scope to avoid cloning the path
+	generated_files.push(output_filename);
 
 	Ok(())
 }
 
-fn generate_dir(
-	i: usize,
-	dirname: &str,
-	browser: &mut DirBrowser,
-	output_path: &Path,
-	params: &HashMap<String, String>,
-) -> miette::Result<()> {
-	/* Generate dir in output dir */
-	let output_path = output_path.join(dirname);
-
-	/* Enter into the template dir */
-	browser.enter(i).into_diagnostic()?;
-
-	/* Read template entries */
-	let entries = browser
-		.read_dir()
-		.take_while(|entry| !matches!(entry, Entry::Directory(_)))
-		.cloned()
-		.collect::<Vec<_>>();
-
-	for (i, entry) in entries.iter().enumerate() {
-		generate_entry(entry, browser, &output_path, params, i)?;
+fn attatch_variables(
+	files_variables: &mut HashMap<String, String>,
+	cli_variables: Vec<(String, String)>,
+	output_name: String,
+) {
+	if !files_variables.contains_key(&output_name) {
+		files_variables.insert("name".into(), output_name);
 	}
 
-	/* Get back of template dir */
-	browser.back().into_diagnostic()?;
+	for (key, value) in cli_variables {
+		files_variables.insert(key, value);
+	}
+}
 
-	Ok(())
+#[cfg(test)]
+mod tests {
+	use super::*;
+
+	#[test]
+	fn should_attach_variables() {
+		let mut files_variables = HashMap::new();
+		files_variables.insert("namespace".into(), "app".into());
+		let cli_variables = vec![];
+		let output_name = "foo".into();
+
+		attatch_variables(&mut files_variables, cli_variables, output_name);
+		assert_eq!(files_variables["namespace"], "app");
+		assert_eq!(files_variables["name"], "foo");
+	}
 }

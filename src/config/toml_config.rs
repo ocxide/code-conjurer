@@ -57,8 +57,6 @@ impl TomlConfig {
 			.map(|choice| choice.join(CONFIG_FILENAME))
 			.collect::<Vec<_>>();
 
-        println!("{:?}", &files);
-
 		for content in files.iter().flat_map(fs::read_to_string) {
 			let added_config = toml::from_str::<PartialTomlConfig>(&content)?;
 			if added_config.templates_path.is_some() {

@@ -8,10 +8,12 @@ mod template;
 mod terminal;
 mod traits;
 
+mod io;
+
 use crate::cli::{Cli, Commands};
 use clap::Parser;
 use cli::GenerateCommand;
-use commands::{generate::recursive_generate, path::print_path, list::list};
+use commands::{generate, list::list, path::print_path};
 use config::Config;
 use miette::IntoDiagnostic;
 use terminal::create_file::create_file;
@@ -21,10 +23,10 @@ fn main() -> miette::Result<()> {
 	let cli = Cli::parse();
 
 	match cli.commands {
-        Commands::List => {
-            let config = config?;
-            list(&config).into_diagnostic()
-        },
+		Commands::List => {
+			let config = config?;
+			list(&config).into_diagnostic()
+		}
 		Commands::Path => print_path(),
 		Commands::Generate(GenerateCommand {
 			template,
@@ -37,7 +39,15 @@ fn main() -> miette::Result<()> {
 				Some(path) => path.into(),
 			};
 
-			recursive_generate(params, template, output, config)
+			match generate::generate(params, template, output, config) {
+				Ok(files) => {
+					files.into_iter().for_each(|path| {
+						println!("{} ✓", path.to_string_lossy());
+					});
+					Ok(())
+				}
+				Err(e) => Err(e.into()),
+			}
 		}
 	}
 }

@@ -1,7 +1,7 @@
 use miette::{Diagnostic, NamedSource, SourceSpan};
 use thiserror::Error;
 
-use crate::template::parse::ParamNotFound;
+use crate::template::parse::error::ParamNotFound;
 
 #[derive(Error, Debug, Diagnostic)]
 #[error("Param Not found in template")]
@@ -26,7 +26,7 @@ impl ParamNotFoundDiagnostic {
 
 	pub fn from_error(error: ParamNotFound, filename: impl AsRef<str>) -> Self {
 		let range = (error.start, error.end - error.start);
-		let content = error.template;
+		let content = "";
 
 		Self::new(filename, content, range)
 	}

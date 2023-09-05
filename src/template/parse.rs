@@ -1,20 +1,75 @@
+pub mod error;
+
 use std::{
+	io::Write,
 	iter::{Enumerate, Skip},
 	str::Chars,
 };
 
 use std::collections::HashMap;
 
+use self::error::{Error, ParamNotFound};
+
 use super::pipes::{capitalize_all, capitalize_once};
 
-type Pipe = Box<dyn (Fn(&str) -> String) + 'static>;
+type Pipe = fn(&str) -> String;
 type PipesMap = HashMap<String, Pipe>;
 
-#[derive(Debug)]
-pub struct ParamNotFound<'a> {
-	pub template: &'a str,
-	pub start: usize,
-	pub end: usize,
+pub trait TemplateParse {
+	/// Parses the template and writes the result to `writter`.
+	/// Note that this method may write a lot of times, so ensure to use a BufWrite if working with
+	/// blocking systems.
+	fn parse<W: Write>(&self, content: &str, writter: &mut W) -> Result<(), Error>;
+}
+
+pub struct DefaultTemplateParse {
+	pipes: PipesMap,
+	vars: HashMap<String, String>,
+}
+
+impl DefaultTemplateParse {
+	pub fn with_vars(vars: HashMap<String, String>) -> Self {
+		let mut pipes: PipesMap = HashMap::new();
+		pipes.insert("capitalize_once".to_owned(), capitalize_once);
+		pipes.insert("capitalize_all".into(), |slice| capitalize_all(slice, '-'));
+
+		Self { pipes, vars }
+	}
+}
+
+impl TemplateParse for DefaultTemplateParse {
+	fn parse<W: Write>(&self, content: &str, writter: &mut W) -> Result<(), Error> {
+		let mut i = 0usize;
+
+		for TemplateParam { name, start, end } in ParamsBrowser::new(content) {
+			/* Previous slice */
+			let back = &content[i..start];
+
+			writter.write(back.as_bytes())?;
+
+			let (var_name, pipes_iter) = {
+				let mut var_slices = name.split(SEPARATOR);
+				/* Slipt always return a first param */
+				let var_name = var_slices.next().unwrap();
+				let pipes = var_slices;
+
+				(var_name, pipes)
+			};
+
+			let value = self
+				.vars
+				.get(var_name)
+				.ok_or_else(|| ParamNotFound { end, start })?;
+
+			let piped_value = apply_pipes(value, pipes_iter, &self.pipes);
+			writter.write(piped_value.as_bytes())?;
+
+			i = end;
+		}
+
+		writter.write(content[i..].as_bytes())?;
+		Ok(())
+	}
 }
 
 const SEPARATOR: char = '|';
@@ -22,22 +77,19 @@ const SEPARATOR: char = '|';
 pub fn parse<'a>(
 	template: &'a str,
 	params: &HashMap<String, String>,
-) -> Result<String, ParamNotFound<'a>> {
+) -> Result<String, ParamNotFound> {
 	let mut pipes: PipesMap = HashMap::new();
-	pipes.insert("capitalize_once".into(), Box::new(capitalize_once));
-	pipes.insert(
-		"capitalize_all".into(),
-		Box::new(|slice| capitalize_all(slice, '-')),
-	);
+	pipes.insert("capitalize_once".into(), capitalize_once);
+	pipes.insert("capitalize_all".into(), |slice| capitalize_all(slice, '-'));
 
 	_parse(template, params, pipes)
 }
 
-fn _parse<'a>(
-	template: &'a str,
+fn _parse(
+	template: &str,
 	params: &HashMap<String, String>,
 	pipes: PipesMap,
-) -> Result<String, ParamNotFound<'a>> {
+) -> Result<String, ParamNotFound> {
 	let mut parsed = String::new();
 	let mut i = 0usize;
 
@@ -56,15 +108,9 @@ fn _parse<'a>(
 			(var_name, pipes)
 		};
 
-		let value = params.get(var_name).ok_or_else(|| {
-			println!("{:?}", &params);
-
-			ParamNotFound {
-				template,
-				end,
-				start,
-			}
-		})?;
+		let value = params
+			.get(var_name)
+			.ok_or_else(|| ParamNotFound { end, start })?;
 
 		let piped_value = apply_pipes(value, pipes_iter, &pipes);
 		parsed.push_str(&piped_value);
