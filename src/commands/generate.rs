@@ -24,7 +24,7 @@ pub type FilesGenerated = Box<[PathBuf]>;
 pub fn generate(
 	cli_variables: Vec<(String, String)>,
 	template_name: String,
-	output: PathBuf,
+	mut output: PathBuf,
 	mut config: Config,
 ) -> Result<FilesGenerated, Error> {
 	let output_name = output
@@ -43,7 +43,7 @@ pub fn generate(
 	let template_file_metadata = match template_path.metadata() {
 		Ok(metadata) => metadata,
 		Err(_) => {
-			let error = Error::TemplateNotAccessible(template_name, config.toml_config.templates_path);
+			let error = Error::template_not_found(template_name, config.toml_config.templates_path);
 			return Err(error);
 		}
 	};
@@ -51,15 +51,16 @@ pub fn generate(
 	let mut files_generated = vec![];
 	let parser = DefaultTemplateParse::with_vars(config.toml_config.variables);
 
-	let output_name = output_name.into();
+	if !template_file_metadata.file_type().is_dir() {
+		return Err(Error::template_invalid(template_name, template_path));
+	}
 
-	recursive_generate(
-		NamedPathBuf::new(template_path, template_name.into()),
-		template_file_metadata.file_type(),
-		NamedPathBuf::new(output, output_name),
-		&mut files_generated,
-		&parser,
-	)?;
+    // Create the files in the parent output directory
+	if !output.pop() {
+		return Err(Error::OutputNameInvalid); // TODO: Better error
+	}
+
+	generate_dir(template_path, output, &mut files_generated, &parser)?;
 
 	Ok(files_generated.into_boxed_slice())
 }
@@ -212,6 +213,10 @@ fn attatch_variables(
 
 #[cfg(test)]
 mod tests {
+	use std::fs;
+
+	use crate::config::toml_config::TomlConfig;
+
 	use super::*;
 
 	#[test]
@@ -224,5 +229,31 @@ mod tests {
 		attatch_variables(&mut files_variables, cli_variables, output_name);
 		assert_eq!(files_variables["namespace"], "app");
 		assert_eq!(files_variables["name"], "foo");
+	}
+
+	#[test]
+	fn should_generate_file() {
+		let cli_variables = vec![];
+		let template_name = "foo".into();
+		let output = PathBuf::from("./files/output/bar");
+
+		let mut variables = HashMap::new();
+
+		variables.insert("namespace".into(), "app".into());
+
+		let config = Config {
+			toml_config: TomlConfig {
+				templates_path: PathBuf::from("./files/templates/"),
+				variables,
+			},
+		};
+
+		let _ = fs::create_dir_all("./files/templates/foo");
+		fs::write("./files/templates/foo/foo", "{(namespace)}").unwrap();
+		let _ = fs::remove_dir_all("./files/templates/foo/foo");
+		generate(cli_variables, template_name, output, config).unwrap();
+
+		let contents = fs::read_to_string("./files/output/foo").unwrap();
+		assert_eq!(contents, "app");
 	}
 }

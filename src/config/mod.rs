@@ -1,5 +1,5 @@
 mod error;
-mod toml_config;
+pub mod toml_config;
 
 use std::env::current_dir;
 use std::env::current_exe;
