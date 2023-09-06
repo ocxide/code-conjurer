@@ -55,7 +55,7 @@ pub fn generate(
 		return Err(Error::template_invalid(template_name, template_path));
 	}
 
-    // Create the files in the parent output directory
+	// Create the files in the parent output directory
 	if !output.pop() {
 		return Err(Error::OutputNameInvalid); // TODO: Better error
 	}
@@ -255,5 +255,27 @@ mod tests {
 
 		let contents = fs::read_to_string("./files/output/foo").unwrap();
 		assert_eq!(contents, "app");
+	}
+
+	#[test]
+	fn should_validate_template_is_dir() {
+		let template_name = "temp2".into();
+		let output = PathBuf::from("./files/output/bar2");
+
+		let mut variables = HashMap::new();
+		variables.insert("namespace".into(), "app".into());
+
+		let config = Config {
+			toml_config: TomlConfig {
+				templates_path: PathBuf::from("./files/templates/"),
+				variables,
+			},
+		};
+
+		let _ = fs::create_dir_all("./files/templates/");
+		fs::write("./files/templates/temp2", "").unwrap();
+
+		let error = generate(vec![], template_name, output, config).unwrap_err();
+		assert!(matches!(error, Error::TemplateNotValid { .. }), "Error generated was: {error:?}");
 	}
 }
