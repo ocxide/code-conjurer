@@ -3,7 +3,6 @@ mod commands;
 mod config;
 mod diagnostics;
 mod dir_browser;
-mod path;
 mod template;
 mod terminal;
 mod traits;
@@ -41,6 +40,7 @@ fn main() -> miette::Result<()> {
 
 			match generate::generate(params, template, output, config) {
 				Ok(files) => {
+                    println!("Generated {} files:", files.len());
 					files.into_iter().for_each(|path| {
 						println!("{} ✓", path.to_string_lossy());
 					});

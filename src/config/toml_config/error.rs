@@ -2,14 +2,8 @@ use std::path::PathBuf;
 
 #[derive(Debug, thiserror::Error)]
 pub enum TomlConfigError {
-	#[error("Toml config in {0:?} not found")]
-	NotFound(PathBuf),
-
 	#[error(transparent)]
 	NotFoundIn(#[from] NotFoundIn),
-
-	#[error("Toml config in {0:?} unreadable")]
-	Unreadable(PathBuf),
 
 	#[error("Toml config unparseable: \n{0}")]
 	Unparseable(#[from] toml::de::Error),

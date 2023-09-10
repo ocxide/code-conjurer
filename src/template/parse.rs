@@ -74,17 +74,6 @@ impl TemplateParse for DefaultTemplateParse {
 
 const SEPARATOR: char = '|';
 
-pub fn parse<'a>(
-	template: &'a str,
-	params: &HashMap<String, String>,
-) -> Result<String, ParamNotFound> {
-	let mut pipes: PipesMap = HashMap::new();
-	pipes.insert("capitalize_once".into(), capitalize_once);
-	pipes.insert("capitalize_all".into(), |slice| capitalize_all(slice, '-'));
-
-	_parse(template, params, pipes)
-}
-
 fn _parse(
 	template: &str,
 	params: &HashMap<String, String>,

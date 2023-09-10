@@ -24,16 +24,6 @@ pub struct Symlink {
 	pub link: PathBuf,
 }
 
-#[derive(Debug, thiserror::Error)]
-enum EntryError {
-	#[error("Invalid path: {0}")]
-	InvalidPath(String),
-	#[error("Path not found")]
-	PathNotFound,
-	#[error("Can not access path")]
-	Unauthorized,
-}
-
 impl<P: AsRef<Path>> MyTryFrom<P> for Entry {
 	type Error = io::Error;
 
