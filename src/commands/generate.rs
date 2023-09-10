@@ -3,7 +3,7 @@ mod error;
 use std::{
 	collections::HashMap,
 	ffi::OsString,
-	fs::FileType,
+	fs::{self, FileType},
 	io::{BufRead, BufReader, BufWriter, Write},
 	os::unix::prelude::OsStringExt,
 	path::PathBuf,
@@ -62,6 +62,10 @@ pub fn generate(
 		return Err(Error::OutputNameInvalid); // TODO: Better error
 	}
 
+	if fs::create_dir_all(&output).is_err() {
+		return Err(Error::CouldNotWrite(output)); // Find better error
+	}
+
 	generate_dir(template_path, output, &mut files_generated, &parser)?;
 
 	Ok(files_generated.into_boxed_slice())
@@ -83,6 +87,10 @@ fn recursive_generate<T: TemplateParse>(
 			template_parser,
 		)
 	} else if template_filetype.is_dir() {
+		if fs::create_dir(&output.pathbuf).is_err() {
+			return Err(Error::CouldNotWrite(output.pathbuf)); // Find better error
+		}
+
 		generate_dir(
 			template_path.pathbuf,
 			output.pathbuf,
@@ -143,12 +151,13 @@ fn generate_dir<T: TemplateParse>(
 			}
 		};
 
-		let output_named_path = NamedPathBuf::new(output.join(&parsed_filename), parsed_filename.clone());
+		let output_named_path =
+			NamedPathBuf::new(output.join(&parsed_filename), parsed_filename.clone());
 
 		recursive_generate(
 			NamedPathBuf::new(entry.path(), os_filename),
 			filetype,
-            output_named_path,
+			output_named_path,
 			files_generated,
 			template_parser,
 		)?;
@@ -326,12 +335,46 @@ mod tests {
 		.expect("Generate filename_template");
 
 		generate(cli_variables, template_name, output, config).unwrap();
-		let contents = fs::read_to_string("./files/output/myoutput.txt").expect("Reading myoutput file");
+		let contents =
+			fs::read_to_string("./files/output/myoutput.txt").expect("Reading myoutput file");
 		assert_eq!(contents, "message");
 	}
 
-    #[test]
-    fn should_generate_recursively() {
-        
-    }
+	#[test]
+	fn should_generate_recursively() {
+		let config = Config {
+			toml_config: TomlConfig {
+				templates_path: PathBuf::from("./files/templates/"),
+				variables: HashMap::new(),
+			},
+		};
+		let cli_variables = vec![];
+
+		fs::create_dir_all("./files/templates/parent_dir").expect("Creating parent_dir");
+		fs::create_dir_all("./files/templates/parent_dir/child_dir").expect("Creating child_dir");
+
+		fs::write("./files/templates/parent_dir/{(name)}.txt", "message")
+			.expect("Generating child_dir file");
+		fs::write(
+			"./files/templates/parent_dir/child_dir/{(name)}.txt",
+			"message",
+		)
+		.expect("Generating child_dir file");
+
+		generate(
+			cli_variables,
+			"parent_dir".to_owned(),
+			PathBuf::from("./files/output/item1"),
+			config,
+		)
+		.unwrap();
+
+		let parent_content =
+			fs::read_to_string("./files/output/item1.txt").expect("Parent file content not match");
+		assert_eq!(parent_content, "message");
+
+		let child_content = fs::read_to_string("./files/output/child_dir/item1.txt")
+			.expect("Child file content not match");
+		assert_eq!(child_content, "message");
+	}
 }
