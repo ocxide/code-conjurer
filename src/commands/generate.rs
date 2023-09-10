@@ -2,8 +2,10 @@ mod error;
 
 use std::{
 	collections::HashMap,
+	ffi::OsString,
 	fs::FileType,
 	io::{BufRead, BufReader, BufWriter, Write},
+	os::unix::prelude::OsStringExt,
 	path::PathBuf,
 };
 
@@ -115,7 +117,23 @@ fn generate_dir<T: TemplateParse>(
 			}
 		};
 
-		let filename = entry.file_name();
+		let os_filename = entry.file_name();
+		let filename = match os_filename.to_str() {
+			Some(filename) => filename,
+			None => {
+				let error = Error::CouldNotRead(entry.path()); // TODO: Better error
+				return Err(error);
+			}
+		};
+
+		let mut parsed_filename = vec![];
+		if let Err(e) = template_parser.parse(filename, &mut parsed_filename) {
+			let error = Error::from_parse_error(e, filename.to_string(), filename.to_string()); // TODO
+			return Err(error);
+		};
+
+		let parsed_filename = OsString::from_vec(parsed_filename);
+
 		// Do the filetype call in this scope because it is almost free in most platforms
 		let filetype = match entry.file_type() {
 			Ok(filetype) => filetype,
@@ -125,10 +143,12 @@ fn generate_dir<T: TemplateParse>(
 			}
 		};
 
+		let output_named_path = NamedPathBuf::new(output.join(&parsed_filename), parsed_filename.clone());
+
 		recursive_generate(
-			NamedPathBuf::new(entry.path(), filename.clone()),
+			NamedPathBuf::new(entry.path(), os_filename),
 			filetype,
-			NamedPathBuf::new(output.join(&filename), filename),
+            output_named_path,
 			files_generated,
 			template_parser,
 		)?;
@@ -276,6 +296,42 @@ mod tests {
 		fs::write("./files/templates/temp2", "").unwrap();
 
 		let error = generate(vec![], template_name, output, config).unwrap_err();
-		assert!(matches!(error, Error::TemplateNotValid { .. }), "Error generated was: {error:?}");
+		assert!(
+			matches!(error, Error::TemplateNotValid { .. }),
+			"Error generated was: {error:?}"
+		);
 	}
+
+	#[test]
+	fn should_parse_filenames() {
+		let cli_variables = vec![];
+		let template_name = "filename_template".into();
+		let output = PathBuf::from("./files/output/myoutput");
+
+		let variables = HashMap::new();
+
+		let config = Config {
+			toml_config: TomlConfig {
+				templates_path: PathBuf::from("./files/templates/"),
+				variables,
+			},
+		};
+
+		let _ = fs::create_dir_all("./files/templates/filename_template");
+
+		fs::write(
+			"./files/templates/filename_template/{(name)}.txt",
+			"message",
+		)
+		.expect("Generate filename_template");
+
+		generate(cli_variables, template_name, output, config).unwrap();
+		let contents = fs::read_to_string("./files/output/myoutput.txt").expect("Reading myoutput file");
+		assert_eq!(contents, "message");
+	}
+
+    #[test]
+    fn should_generate_recursively() {
+        
+    }
 }
