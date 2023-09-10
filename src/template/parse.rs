@@ -8,12 +8,12 @@ use std::{
 
 use std::collections::HashMap;
 
-use self::error::{Error, ParamNotFound};
+use self::error::{Error, ParamNotFound, PipeUndefined, InternalError};
 
 use super::pipes::{capitalize_all, capitalize_once};
 
 type Pipe = fn(&str) -> String;
-type PipesMap = HashMap<String, Pipe>;
+type PipesMap = HashMap<&'static str, Pipe>;
 
 pub trait TemplateParse {
 	/// Parses the template and writes the result to `writter`.
@@ -30,8 +30,8 @@ pub struct DefaultTemplateParse {
 impl DefaultTemplateParse {
 	pub fn with_vars(vars: HashMap<String, String>) -> Self {
 		let mut pipes: PipesMap = HashMap::new();
-		pipes.insert("capitalize_once".to_owned(), capitalize_once);
-		pipes.insert("capitalize_all".into(), |slice| capitalize_all(slice, '-'));
+		pipes.insert("capitalize_once", capitalize_once);
+		pipes.insert("capitalize_all", |slice| capitalize_all(slice, '-'));
 
 		Self { pipes, vars }
 	}
@@ -61,7 +61,7 @@ impl TemplateParse for DefaultTemplateParse {
 				.get(var_name)
 				.ok_or_else(|| ParamNotFound { end, start })?;
 
-			let piped_value = apply_pipes(value, pipes_iter, &self.pipes);
+			let piped_value = apply_pipes(value, pipes_iter, &self.pipes)?;
 			writter.write(piped_value.as_bytes())?;
 
 			i = end;
@@ -78,7 +78,7 @@ fn _parse(
 	template: &str,
 	params: &HashMap<String, String>,
 	pipes: PipesMap,
-) -> Result<String, ParamNotFound> {
+) -> Result<String, InternalError> {
 	let mut parsed = String::new();
 	let mut i = 0usize;
 
@@ -101,7 +101,7 @@ fn _parse(
 			.get(var_name)
 			.ok_or_else(|| ParamNotFound { end, start })?;
 
-		let piped_value = apply_pipes(value, pipes_iter, &pipes);
+		let piped_value = apply_pipes(value, pipes_iter, &pipes)?;
 		parsed.push_str(&piped_value);
 
 		i = end;
@@ -182,21 +182,30 @@ impl<'a> Iterator for ParamsBrowser<'a> {
 
 fn apply_pipes<'a>(
 	value: &'a str,
-	split: impl Iterator<Item = &'a str>,
+	mut pipes_applied: impl Iterator<Item = &'a str>,
 	pipes: &PipesMap,
-) -> String {
-	let mut pipes_fns = split.filter_map(|pipe_name| pipes.get(pipe_name));
-	let first_pipe = match pipes_fns.next() {
-		Some(first_pipe) => first_pipe,
-		None => return value.to_owned(),
+) -> Result<String, PipeUndefined> {
+	let first_pipe = match pipes_applied.next() {
+		Some(pipename) => {
+			let pipe = pipes
+				.get(pipename)
+				.ok_or_else(|| PipeUndefined::new(pipename.to_owned(), (1, 2)))?;
+			pipe
+		}
+
+		None => return Ok(value.to_owned()),
 	};
 
 	let mut result = first_pipe(value);
 
-	for pipe in pipes_fns {
-		result = pipe(&result);
+	for pipename in pipes_applied {
+		let pipe = pipes
+			.get(pipename)
+			.ok_or_else(|| PipeUndefined::new(pipename.to_owned(), (1, 2)))?;
+
+		result = (pipe)(&result);
 	}
 
 	// Return the `result` variable.
-	result
+	Ok(result)
 }

@@ -2,7 +2,7 @@ use std::{fmt::Display, path::PathBuf};
 
 use miette::Diagnostic;
 
-use crate::template::parse::error as parse_error;
+use crate::template::parse::error::{self as parse_error, PipeUndefined};
 
 #[derive(thiserror::Error, Debug, Diagnostic)]
 pub enum Error {
@@ -18,9 +18,9 @@ pub enum Error {
 
 	#[error("Template '{template_name}' in {} is invalid", templates_dir.to_string_lossy())]
 	#[diagnostic(
-        code(template_error::TemplateNotValid), 
-        help("Templates must be directories.")
-    )]
+		code(template_error::TemplateNotValid),
+		help("Templates must be directories.")
+	)]
 	TemplateNotValid {
 		template_name: String,
 		templates_dir: PathBuf,
@@ -115,7 +115,7 @@ pub enum TemplateError {
 	#[error("pipe '{pipe}' not found")]
 	#[diagnostic(code(PipeNotFound), help("This pipe is not available."))]
 	PipeNotFound {
-		pipe: &'static str,
+		pipe: String,
 		#[source_code]
 		src: miette::NamedSource,
 		#[label("here")]
@@ -127,13 +127,14 @@ impl Error {
 	pub fn from_parse_error(error: parse_error::Error, content: String, filename: String) -> Self {
 		match error {
 			parse_error::Error::External(_) => Self::CouldNotRead(PathBuf::from(filename)),
-			parse_error::Error::Internal(parse_error::InternalError::PipeNotFound(pipe)) => {
-				Self::Template(TemplateError::PipeNotFound {
-					pipe,
-					src: miette::NamedSource::new(filename, content),
-					span: (1, 2),
-				})
-			}
+			parse_error::Error::Internal(parse_error::InternalError::PipeNotFound(PipeUndefined {
+				slice,
+				pipename,
+			})) => Self::Template(TemplateError::PipeNotFound {
+				pipe: pipename,
+				src: miette::NamedSource::new(filename, content),
+				span: slice,
+			}),
 			parse_error::Error::Internal(parse_error::InternalError::ParamNotFound(param)) => {
 				Self::Template(TemplateError::VariableNotFound {
 					src: miette::NamedSource::new(filename, content),
