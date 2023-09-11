@@ -211,6 +211,10 @@ fn generate_file<T: TemplateParse>(
 
 			return Err(error);
 		};
+
+		if output_file.write(b"\n").is_err() {
+			return Err(Error::CouldNotWrite(output_filename));
+		}
 	}
 
 	if let Err(e) = output_file.flush() {
