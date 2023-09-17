@@ -1,10 +1,9 @@
 mod error;
 
-use std::{borrow::Cow, collections::HashMap, fs, mem, path::PathBuf};
+use std::{borrow::Cow, collections::HashMap, fs, path::PathBuf};
 
 use serde::Deserialize;
 
-use crate::traits::append::Append;
 pub use error::{NotFoundIn, TomlConfigError};
 
 pub const CONFIG_FILENAME: &str = ".codecrc.toml";
@@ -74,15 +73,7 @@ impl TomlConfig {
 			return Err(NotFoundIn(files.into()).into());
 		}
 
-		Self::try_build(base_config)
-	}
-
-	fn try_build(base: PartialTomlConfig) -> Result<Self, TomlConfigError> {
-		let mut config = Self::try_from(base)?;
-		let custom_variables = mem::replace(&mut config.variables, default_variables());
-		config.variables.append(custom_variables);
-
-		Ok(config)
+		Self::try_from(base_config)
 	}
 }
 
@@ -99,45 +90,9 @@ impl TryFrom<PartialTomlConfig> for TomlConfig {
 	}
 }
 
-fn default_variables() -> HashMap<String, String> {
-	let mut map = HashMap::new();
-	map.insert("namespace".into(), "app".into());
-
-	map
-}
-
 #[cfg(test)]
 mod tests {
 	use super::*;
-
-	#[test]
-	fn should_have_default_variables() {
-		let base = PartialTomlConfig {
-			templates_path: Some(PathBuf::new()),
-			..Default::default()
-		};
-		let config = TomlConfig::try_build(base).unwrap();
-
-		assert_eq!(config.variables["namespace"], "app");
-	}
-
-	#[test]
-	fn can_override_default_variables() {
-		let variables = {
-			let mut variables = HashMap::new();
-			variables.insert("namespace".into(), "foo".into());
-			variables
-		};
-
-		let base = PartialTomlConfig {
-			variables: Some(variables),
-			templates_path: Some(PathBuf::new()),
-		};
-
-		let config = TomlConfig::try_build(base).unwrap();
-
-		assert_eq!(config.variables["namespace"], "foo");
-	}
 
 	#[test]
 	fn reads_correctly() {
@@ -147,6 +102,6 @@ mod tests {
 		];
 
 		let config = TomlConfig::try_new(&paths).unwrap();
-        assert_eq!(config.variables["namespace"], "foo");
+		assert_eq!(config.variables["namespace"], "foo");
 	}
 }

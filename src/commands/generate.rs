@@ -179,7 +179,7 @@ fn generate_file<T: TemplateParse>(
 			return Err(error);
 		}
 	};
-	let template_file = BufReader::new(template_file);
+	let mut template_file = BufReader::new(template_file);
 
 	let output_file = match std::fs::File::create(&output_filename) {
 		Ok(file) => file,
@@ -190,14 +190,20 @@ fn generate_file<T: TemplateParse>(
 	};
 	let mut output_file = BufWriter::new(output_file);
 
-	for result in template_file.lines() {
-		let line = match result {
+	let mut line = String::new();
+	loop {
+		let bytes = match template_file.read_line(&mut line) {
 			Ok(line) => line,
 			Err(_) => {
 				let error = Error::CouldNotRead(template_filename);
 				return Err(error);
 			}
 		};
+
+		// EOF
+		if bytes == 0 {
+			break;
+		}
 
 		if let Err(e) = template_parser.parse(&line, &mut output_file) {
 			let error = Error::from_parse_error(
@@ -212,9 +218,7 @@ fn generate_file<T: TemplateParse>(
 			return Err(error);
 		};
 
-		if output_file.write(b"\n").is_err() {
-			return Err(Error::CouldNotWrite(output_filename));
-		}
+		line.clear();
 	}
 
 	if let Err(e) = output_file.flush() {
