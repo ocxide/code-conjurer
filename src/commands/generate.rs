@@ -4,7 +4,7 @@ use std::{
 	collections::HashMap,
 	ffi::OsString,
 	fs::{self, FileType},
-	io::{BufRead, BufReader, BufWriter, Write},
+	io::{self, BufRead, BufReader, BufWriter, Write},
 	os::unix::prelude::OsStringExt,
 	path::PathBuf,
 };
@@ -87,7 +87,8 @@ fn recursive_generate<T: TemplateParse>(
 			template_parser,
 		)
 	} else if template_filetype.is_dir() {
-		if fs::create_dir(&output.pathbuf).is_err() {
+		if matches!(fs::create_dir(&output.pathbuf), Err(e) if e.kind() != io::ErrorKind::AlreadyExists)
+		{
 			return Err(Error::CouldNotWrite(output.pathbuf)); // Find better error
 		}
 
